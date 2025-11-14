@@ -1,0 +1,40 @@
+# Netlify 설정 파일
+
+[build]
+  # 빌드 커맨드 (정적 사이트이므로 불필요)
+  command = ""
+  # 퍼블리시 디렉토리
+  publish = "."
+
+# 헤더 설정 (보안 및 성능 최적화)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# 캐싱 설정 (성능 최적화)
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# 리다이렉트 설정 (필요시)
+# [[redirects]]
+#   from = "/*"
+#   to = "/index.html"
+#   status = 200
+

@@ -942,7 +942,40 @@ window.addEventListener('resize', () => {
 
 window.addEventListener('DOMContentLoaded', () => {
     loadNews();
+    
+    // 아침 자동 새로고침 설정 (오전 9시)
+    scheduleMorningRefresh();
 });
+
+// 아침 자동 새로고침 스케줄링
+function scheduleMorningRefresh() {
+    const now = new Date();
+    const morningTime = new Date();
+    morningTime.setHours(9, 0, 0, 0); // 오전 9시
+    
+    // 오늘 오전 9시가 지났으면 내일 오전 9시로 설정
+    if (now >= morningTime) {
+        morningTime.setDate(morningTime.getDate() + 1);
+    }
+    
+    const timeUntilMorning = morningTime.getTime() - now.getTime();
+    
+    console.log(`다음 자동 새로고침: ${morningTime.toLocaleString('ko-KR')} (${Math.round(timeUntilMorning / 1000 / 60)}분 후)`);
+    
+    setTimeout(() => {
+        console.log('아침 자동 새로고침 실행');
+        if (!selectedSource) {
+            loadNews();
+        }
+        // 매일 반복
+        setInterval(() => {
+            if (!selectedSource) {
+                console.log('아침 자동 새로고침 실행');
+                loadNews();
+            }
+        }, 24 * 60 * 60 * 1000); // 24시간마다
+    }, timeUntilMorning);
+}
 
 // 5분마다 자동 새로고침
 setInterval(() => {
