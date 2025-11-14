@@ -32,6 +32,12 @@ let selectedSource = null;
 // 전체 뉴스 데이터 저장 (키워드 필터링용)
 let allNewsData = [];
 
+// 워드클라우드 데이터 저장 (리사이즈 시 재렌더링용)
+let wordCloudData = {
+    korean: null,
+    english: null
+};
+
 // 모든 뉴스 로드
 async function loadNews(sourceName = null) {
     selectedSource = sourceName; // 현재 선택된 소스 저장
@@ -593,6 +599,10 @@ function generateWordCloud(texts) {
     // 키워드 추출 및 한글/영어 분리
     const { korean, english } = extractKeywords(texts);
     
+    // 워드클라우드 데이터 저장 (리사이즈 시 재렌더링용)
+    wordCloudData.korean = korean.slice(0, 30);
+    wordCloudData.english = english.slice(0, 30);
+    
     // 한글 워드클라우드 생성
     if (korean.length > 0) {
         createWordCloud(wordcloudKorean, korean.slice(0, 30), 'korean');
@@ -677,17 +687,26 @@ function filterNewsByKeyword(keyword) {
 function createWordCloud(canvas, keywords, type) {
     if (!canvas || keywords.length === 0) return;
 
-    // 캔버스 크기 설정 (고해상도)
+    // 캔버스 크기 고정 (고해상도)
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+    
+    // 명시적인 크기 설정 (CSS에서 설정한 크기 사용)
+    // getBoundingClientRect()가 0을 반환할 수 있으므로 최소값 보장
+    const fixedWidth = Math.max(rect.width || 500, 300); // 최소 300px
+    const fixedHeight = 400; // CSS에서 설정한 고정 높이
+    
+    // 캔버스 실제 크기 (고해상도)
+    canvas.width = fixedWidth * dpr;
+    canvas.height = fixedHeight * dpr;
+    
+    // 캔버스 표시 크기 (CSS 크기 유지)
+    canvas.style.width = fixedWidth + 'px';
+    canvas.style.height = fixedHeight + 'px';
     
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.clearRect(0, 0, fixedWidth, fixedHeight);
 
     // WordCloud2 형식으로 변환
     const wordList = keywords.map(item => [item.word, item.weight]);
@@ -888,6 +907,21 @@ function updateLastUpdate() {
 }
 
 // 페이지 로드 시 뉴스 불러오기
+// 윈도우 리사이즈 시 워드클라우드 재렌더링
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        // 워드클라우드 데이터가 있으면 재렌더링
+        if (wordCloudData.korean && wordCloudData.korean.length > 0) {
+            createWordCloud(wordcloudKorean, wordCloudData.korean, 'korean');
+        }
+        if (wordCloudData.english && wordCloudData.english.length > 0) {
+            createWordCloud(wordcloudEnglish, wordCloudData.english, 'english');
+        }
+    }, 300); // 300ms 디바운스
+});
+
 window.addEventListener('DOMContentLoaded', () => {
     loadNews();
 });

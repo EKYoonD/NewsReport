@@ -45,6 +45,16 @@
    - 몇 분 후 `https://사용자명.github.io/저장소명/` 에서 접속 가능
    - 예: `https://username.github.io/it-news-analysis/`
 
+5. **로컬 변경사항 반영하기**
+   - 로컬에서 파일을 수정한 후 다음 명령어로 GitHub에 업로드:
+   ```bash
+   git add .
+   git commit -m "변경 내용 설명"
+   git push
+   ```
+   - GitHub Pages는 자동으로 업데이트됩니다 (1-2분 소요)
+   - **참고**: `test.html`을 수정했다면 `index.html`도 동일하게 업데이트해야 합니다
+
 ### Netlify (드래그 앤 드롭으로 간단하게)
 
 1. [Netlify](https://www.netlify.com/) 가입 (GitHub 계정으로 간단하게)
