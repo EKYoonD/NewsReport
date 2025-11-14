@@ -689,13 +689,21 @@ function createWordCloud(canvas, keywords, type) {
 
     // 캔버스 크기 고정 (고해상도)
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
+    let rect = canvas.getBoundingClientRect();
     
     // 명시적인 크기 설정 (CSS에서 설정한 크기 사용)
     // getBoundingClientRect()가 0을 반환할 수 있으므로 최소값 보장
     // 화면 너비를 넘지 않도록 제한
-    const maxWidth = window.innerWidth - 100; // 여유 공간 확보
-    const fixedWidth = Math.min(Math.max(rect.width || 500, 300), maxWidth); // 최소 300px, 최대 화면 너비
+    const containerWidth = canvas.parentElement ? canvas.parentElement.clientWidth : window.innerWidth;
+    const maxWidth = Math.min(containerWidth - 50, window.innerWidth - 100); // 여유 공간 확보
+    
+    // rect.width가 0이면 CSS에서 설정한 크기 사용
+    let fixedWidth = rect.width;
+    if (fixedWidth === 0 || isNaN(fixedWidth)) {
+        // CSS에서 width: 100%로 설정되어 있으므로 부모 컨테이너 크기 사용
+        fixedWidth = containerWidth > 0 ? containerWidth - 50 : 500;
+    }
+    fixedWidth = Math.min(Math.max(fixedWidth, 300), maxWidth); // 최소 300px, 최대 화면 너비
     const fixedHeight = 400; // CSS에서 설정한 고정 높이
     
     // 캔버스 실제 크기 (고해상도)
@@ -911,17 +919,25 @@ function updateLastUpdate() {
 // 페이지 로드 시 뉴스 불러오기
 // 윈도우 리사이즈 시 워드클라우드 재렌더링
 let resizeTimeout;
+let isResizing = false;
 window.addEventListener('resize', () => {
+    isResizing = true;
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
-        // 워드클라우드 데이터가 있으면 재렌더링
-        if (wordCloudData.korean && wordCloudData.korean.length > 0) {
-            createWordCloud(wordcloudKorean, wordCloudData.korean, 'korean');
-        }
-        if (wordCloudData.english && wordCloudData.english.length > 0) {
-            createWordCloud(wordcloudEnglish, wordCloudData.english, 'english');
-        }
-    }, 300); // 300ms 디바운스
+        // 브라우저가 레이아웃을 완료한 후 재렌더링
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // 워드클라우드 데이터가 있으면 재렌더링
+                if (wordCloudData.korean && wordCloudData.korean.length > 0) {
+                    createWordCloud(wordcloudKorean, wordCloudData.korean, 'korean');
+                }
+                if (wordCloudData.english && wordCloudData.english.length > 0) {
+                    createWordCloud(wordcloudEnglish, wordCloudData.english, 'english');
+                }
+                isResizing = false;
+            });
+        });
+    }, 500); // 500ms 디바운스 (더 길게)
 });
 
 window.addEventListener('DOMContentLoaded', () => {
