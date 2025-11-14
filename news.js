@@ -693,7 +693,9 @@ function createWordCloud(canvas, keywords, type) {
     
     // 명시적인 크기 설정 (CSS에서 설정한 크기 사용)
     // getBoundingClientRect()가 0을 반환할 수 있으므로 최소값 보장
-    const fixedWidth = Math.max(rect.width || 500, 300); // 최소 300px
+    // 화면 너비를 넘지 않도록 제한
+    const maxWidth = window.innerWidth - 100; // 여유 공간 확보
+    const fixedWidth = Math.min(Math.max(rect.width || 500, 300), maxWidth); // 최소 300px, 최대 화면 너비
     const fixedHeight = 400; // CSS에서 설정한 고정 높이
     
     // 캔버스 실제 크기 (고해상도)

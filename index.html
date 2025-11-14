@@ -365,6 +365,10 @@
             border-radius: 12px;
             padding: 20px 35px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
 
         .wordcloud-wrapper {
@@ -372,6 +376,8 @@
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-top: 10px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .wordcloud-section {
@@ -380,6 +386,10 @@
             padding: 15px 25px;
             border: 1px solid #e5e7eb;
             transition: all 0.3s;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         .wordcloud-section:hover {
@@ -398,7 +408,7 @@
 
         .wordcloud-canvas {
             width: 100%;
-            min-width: 300px;
+            max-width: 100%;
             height: 400px;
             min-height: 400px;
             max-height: 400px;
@@ -408,9 +418,38 @@
             box-sizing: border-box;
         }
 
+        @media (max-width: 1024px) {
+            .wordcloud-container {
+                padding: 20px;
+            }
+            .wordcloud-section {
+                padding: 15px;
+            }
+        }
+
         @media (max-width: 768px) {
             .wordcloud-wrapper {
                 grid-template-columns: 1fr;
+            }
+            .wordcloud-container {
+                padding: 15px;
+            }
+            .wordcloud-section {
+                padding: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .wordcloud-container {
+                padding: 10px;
+            }
+            .wordcloud-section {
+                padding: 10px;
+            }
+            .wordcloud-canvas {
+                height: 350px;
+                min-height: 350px;
+                max-height: 350px;
             }
         }
 
