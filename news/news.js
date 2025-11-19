@@ -13,7 +13,7 @@ const NEWS_SOURCES = {
         { name: '전자신문', url: 'https://m.etnews.com/news/section.html?id1=03', topUrl: 'https://m.etnews.com/news/section.html?id1=03' }
     ],
     english: [
-        { name: 'Dark Reading', url: 'https://www.darkreading.com', topUrl: 'https://www.darkreading.com' },
+        { name: 'Dark Reading', url: 'https://www.darkreading.com', topUrl: 'https://www.darkreading.com/attacks-breaches' },
         { name: 'Cyberscoop', url: 'https://www.cyberscoop.com', topUrl: 'https://www.cyberscoop.com' },
         { name: 'KrebsOnSecurity', url: 'https://krebsonsecurity.com', topUrl: 'https://krebsonsecurity.com' }
     ]
@@ -238,16 +238,51 @@ async function fetchWithProxy(url) {
 // 개별 뉴스 사이트 크롤링
 async function crawlNews(source) {
     try {
-        const url = source.topUrl || source.url;
-        console.log(`${source.name} 크롤링 시작: ${url}`);
-        const html = await fetchWithProxy(url);
-        console.log(`${source.name} HTML 받음 (길이: ${html.length})`);
+        // Dark Reading의 경우 여러 URL 시도
+        const urlsToTry = source.name === 'Dark Reading' 
+            ? [
+                'https://www.darkreading.com/attacks-breaches',
+                'https://www.darkreading.com',
+                'https://www.darkreading.com/vulnerabilities-threats',
+                'https://www.darkreading.com/risk'
+            ]
+            : [source.topUrl || source.url];
         
-        const newsList = await parseNews(html, source);
+        let newsList = [];
+        let lastError = null;
         
-        console.log(`${source.name} 파싱 결과: ${newsList.length}개`);
-        if (newsList.length > 0) {
-            console.log(`${source.name} 첫 번째 뉴스:`, newsList[0].title);
+        for (const url of urlsToTry) {
+            try {
+                console.log(`${source.name} 크롤링 시작: ${url}`);
+                const html = await fetchWithProxy(url);
+                console.log(`${source.name} HTML 받음 (길이: ${html.length})`);
+                
+                if (!html || html.length < 100) {
+                    console.log(`${source.name} HTML이 너무 짧음, 다음 URL 시도...`);
+                    continue;
+                }
+                
+                const parsedNews = await parseNews(html, source);
+                console.log(`${source.name} 파싱 결과: ${parsedNews.length}개`);
+                
+                if (parsedNews.length > 0) {
+                    newsList = parsedNews;
+                    console.log(`${source.name} 첫 번째 뉴스:`, newsList[0].title);
+                    break; // 성공하면 중단
+                } else {
+                    console.log(`${source.name} 뉴스를 찾지 못함, 다음 URL 시도...`);
+                }
+            } catch (err) {
+                console.log(`${source.name} ${url} 크롤링 실패:`, err.message);
+                lastError = err;
+                continue; // 다음 URL 시도
+            }
+        }
+        
+        if (newsList.length === 0) {
+            console.error(`${source.name} 모든 URL 시도 실패`);
+            if (lastError) throw lastError;
+            return [];
         }
         
         // 본문 크롤링은 선택적으로 (너무 느릴 수 있으므로)
@@ -368,13 +403,46 @@ async function parseNews(html, source) {
                 console.log(`${source.name} 대체 선택자 결과: ${articles.length}개`);
             }
         } else if (source.name === 'Dark Reading') {
-            // Dark Reading: article 내부의 링크
-            articles = doc.querySelectorAll('article a, .article-title a, h2 a, h3 a, a[href*="/attacks-breaches"], a[href*="/vulnerabilities-threats"], a[href*="/risk"]');
-            console.log(`${source.name} 선택자 결과: ${articles.length}개`);
-            if (articles.length === 0) {
-                articles = doc.querySelectorAll('a[href*="/attacks-breaches"], a[href*="/vulnerabilities-threats"], a[href*="/risk"], a[href*="/"]');
-                console.log(`${source.name} 대체 선택자 결과: ${articles.length}개`);
+            // Dark Reading: 다양한 선택자 시도
+            const selectors = [
+                'article h2 a, article h3 a',
+                '.article-title a, .headline a, .card-title a',
+                'h2 a, h3 a, h4 a',
+                'a[href*="/attacks-breaches/"], a[href*="/vulnerabilities-threats/"], a[href*="/risk/"]',
+                'a[href*="/application-security/"], a[href*="/cloud/"], a[href*="/endpoint/"]',
+                '.story-title a, .title a, .post-title a',
+                'article a, .article a'
+            ];
+            
+            for (const selector of selectors) {
+                articles = doc.querySelectorAll(selector);
+                console.log(`${source.name} 선택자 "${selector}" 결과: ${articles.length}개`);
+                if (articles.length >= 5) break; // 충분한 결과가 나오면 중단
             }
+            
+            if (articles.length === 0) {
+                // 최후의 수단: 모든 링크 시도
+                articles = doc.querySelectorAll('a[href*="darkreading.com"]');
+                console.log(`${source.name} 전체 링크 시도: ${articles.length}개`);
+            }
+            
+            // 필터링 (더 관대하게)
+            articles = Array.from(articles).filter(a => {
+                const title = a.textContent.trim();
+                const href = a.getAttribute('href') || '';
+                // 제목 길이 체크 (더 관대하게)
+                if (title.length < 10 || title.length > 300) return false;
+                // 구독 관련 제외
+                if (title.toLowerCase().includes('subscribe') || 
+                    title.toLowerCase().includes('newsletter') ||
+                    title.toLowerCase().includes('sign up')) return false;
+                // 유효한 뉴스 링크인지 확인
+                const validPatterns = ['/attacks-breaches', '/vulnerabilities-threats', '/risk', 
+                                       '/application-security', '/cloud', '/endpoint', '/news', 
+                                       '/article', '/20'];
+                return validPatterns.some(pattern => href.includes(pattern)) || title.length >= 20;
+            });
+            console.log(`${source.name} 필터링 후: ${articles.length}개`);
         } else if (source.name === 'Cyberscoop') {
             // Cyberscoop: article 내부의 링크
             articles = doc.querySelectorAll('article a, .article-title a, .headline a, h2 a, h3 a, a[href*="/news"], a[href*="/article"]');
@@ -438,7 +506,8 @@ async function parseNews(html, source) {
         // 유효한 뉴스 링크인지 확인
         const validPatterns = [
             '/news/', '/article/', '/post/', '/media/', '/view/', 
-            '/attacks-breaches', '/vulnerabilities-threats', '/risk',
+            '/attacks-breaches/', '/vulnerabilities-threats/', '/risk/',
+            '/application-security/', '/cloud/', '/endpoint/',
             '/20' // 날짜 포함 링크
         ];
         const isValidLink = validPatterns.some(pattern => href.includes(pattern));
@@ -486,12 +555,17 @@ async function parseNews(html, source) {
             
             if (!href || href === source.url || href.includes('javascript:') || seenUrls.has(href)) continue;
             
-            // 뉴스 관련 링크인지 확인 (더 넓은 범위)
-            const newsPatterns = ['/news/', '/article/', '/post/', '/media/', '/view/', '/story/', '/content/'];
+            // 뉴스 관련 링크인지 확인 (더 넓은 범위, Dark Reading 특별 처리)
+            const newsPatterns = ['/news/', '/article/', '/post/', '/media/', '/view/', '/story/', '/content/',
+                                 '/attacks-breaches', '/vulnerabilities-threats', '/risk', 
+                                 '/application-security', '/cloud', '/endpoint'];
             const isNewsLink = newsPatterns.some(pattern => href.includes(pattern));
             
-            // 최소 5개는 보장하기 위해 패턴이 없어도 추가
-            if (isNewsLink || newsList.length < 5) {
+            // Dark Reading의 경우 더 관대하게 처리
+            const isDarkReading = source.name === 'Dark Reading';
+            const shouldInclude = isNewsLink || (isDarkReading && title.length >= 15) || newsList.length < 5;
+            
+            if (shouldInclude) {
                 seenTitles.add(title);
                 seenUrls.add(href);
                 newsList.push({
